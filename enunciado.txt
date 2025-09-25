@@ -1,0 +1,7 @@
+- Receber a chave pública mestre da CA (Requisição do tipo OBTER_CHAVE_PUBLICA);
+
+- Gerar um certificado, converter para JSON, criptografá-lo com a chave de sessão e enviar uma requisição do tipo ASSINAR_CERTIFICADO;
+
+- O certificado, se estiver válido, será assinado pela CA e enviado de volta pelo mesmo socket, devendo ser armazenado.
+
+- Gerar uma mensagem qualquer (objeto Mensagem) juntamente com o certificado e a assinatura e enviar para a CA uma mensagem do tipo ENVIAR_MENSAGEM.
