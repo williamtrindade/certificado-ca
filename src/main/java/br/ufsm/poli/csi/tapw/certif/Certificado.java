@@ -1,6 +1,10 @@
 package br.ufsm.poli.csi.tapw.certif;
 
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
+
 import java.util.Date;
 
 @JsonPropertyOrder({
@@ -12,6 +16,10 @@ import java.util.Date;
     "assinatura",
     "certificadoCA"
 })
+@JsonIdentityInfo(
+        generator = ObjectIdGenerators.PropertyGenerator.class,
+        property = "nome" // ou "id" se tiver um campo identificador
+)
 public class Certificado {
     private byte[] chavePublica;
     private String nome;
@@ -19,6 +27,7 @@ public class Certificado {
     private Date validadeInicio;
     private Date validadeFim;
     private byte[] assinatura;
+    @JsonIgnore
     private Certificado certificadoCA;
 
     public byte[] getChavePublica() {

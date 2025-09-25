@@ -4,20 +4,19 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 import javax.crypto.*;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.net.Socket;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-        PublicKey publicKey = null;
-        Certificado certificadoAssinadoPeloServidor = null;
+        PublicKey publicKey;
+        Certificado certificadoAssinadoPeloServidor;
 
         KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
         keyPairGenerator.initialize(2048);
@@ -37,16 +36,14 @@ public class Main {
          */
         ObjectMapper mapper = new ObjectMapper();
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
-        String jsonCertificate = mapper.writeValueAsString(certificadoObject);
-        System.out.println(jsonCertificate);
-
+        mapper.configure(SerializationFeature.FAIL_ON_SELF_REFERENCES, false);
 
         /*
          * ---------------------------------------------------------
          *                    CONECTAR NO SERVIDOR
          * ---------------------------------------------------------
          */
-        try (Socket socket = new Socket("192.168.83.1", 8080)) {
+        try (Socket socket = new Socket("localhost", 8080)) {
             // Cria uma requisicao de obter chave publica
             Requisicao requisicao = new Requisicao();
             requisicao.setTipoRequisicao(Requisicao.TipoRequisicao.OBTER_CHAVE_PUBLICA);
@@ -67,7 +64,7 @@ public class Main {
             // System.out.println("Chave publica do servidor: " + publicKey);
         }
 
-        try (Socket socket = new Socket("192.168.83.1", 8080)) {
+        try (Socket socket = new Socket("localhost", 8080)) {
             // Gerar chave AES de sessao
             KeyGenerator keyGen = KeyGenerator.getInstance("AES");
             keyGen.init(256);
@@ -109,25 +106,72 @@ public class Main {
 
             // transformar em objeto
             ObjectMapper mapper1 = new ObjectMapper();
+            mapper1.enable(SerializationFeature.INDENT_OUTPUT);
+            mapper.configure(SerializationFeature.FAIL_ON_SELF_REFERENCES, false);
+
+            //String stringResposta = new String(certificadoResposta);
             certificadoAssinadoPeloServidor = mapper1.readValue(certificadoResposta, Certificado.class);
         }
 
-        System.out.println(certificadoAssinadoPeloServidor);
+        /*
+         * CRIAR UMA MENSAGEM
+         */
+        // Criar a mensagem
+        Mensagem mensagem = new Mensagem();
+        mensagem.setMensagem("OLA MUNDO".getBytes());
 
+        // COLOCAR MEU CERTIFICADO
+        mensagem.setCertificado(certificadoAssinadoPeloServidor);
 
-        // Mensagem mensagem = new Mensagem();
-        // mensagem.setMensagem();
+        // CONVERTER A MENSAGEM PARA BYTE[]
+        ObjectMapper mapper2 = new ObjectMapper();
+        mapper2.enable(SerializationFeature.INDENT_OUTPUT);
+        mapper.configure(SerializationFeature.FAIL_ON_SELF_REFERENCES, false);
+        byte[] mensagemEmBytes = mapper2.writeValueAsBytes(mensagem);
 
+        // GERAR UM HASH DA MENSAGEM
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        byte[] digestBytesMensagem = digest.digest(mensagemEmBytes);
+
+        // CRIPTOGRAFAR O HASH GERADO DA MENSAGEM COM A CHAVE PRIVADA DO CERTIFICADO
+        byte[] hashMensagemCriptografado = encryptWithPrivateKey(digestBytesMensagem, keyPair.getPrivate());
+
+        // setar assinatura da memsagem
+        mensagem.setAssinatura(hashMensagemCriptografado);
+
+        // converter mensagem para byte[]
+        byte[] mensagemComAssinatura = mapper2.writeValueAsBytes(mensagem);
+
+        try (Socket socket = new Socket("localhost", 8080)) {
+            /*
+             * ENVIAR REQUEST DE ENVIAR MENSAGEM
+             */
+            // Criar objeto requisição
+            Requisicao requisicaoFinal = new Requisicao();
+            requisicaoFinal.setTipoRequisicao(Requisicao.TipoRequisicao.ENVIAR_MENSAGEM);
+            requisicaoFinal.setRequisicao(mensagemComAssinatura);
+
+            // Enviar requisição
+            ObjectOutputStream outputStream = new ObjectOutputStream(socket.getOutputStream());
+            outputStream.writeObject(requisicaoFinal);
+
+            // Receber resposta
+            ObjectInputStream inputStream = new ObjectInputStream(socket.getInputStream());
+            Requisicao resposta = (Requisicao) inputStream.readObject();
+
+            byte[] respostaMensagem = resposta.getResposta();
+            System.out.println(Arrays.toString(respostaMensagem));
+        }
     }
 
     private static Certificado getCertificadoObject(KeyPair keyPair) throws ParseException {
         Certificado certificadoObject = new Certificado();
         certificadoObject.setChavePublica(keyPair.getPublic().getEncoded());
         certificadoObject.setNome("WilliamJordan");
-        certificadoObject.setIpOrigem("172.21.25.150");
+        certificadoObject.setIpOrigem("127.0.0.1");
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
-        certificadoObject.setValidadeInicio(simpleDateFormat.parse("01/08/2025 00:00:00"));
-        certificadoObject.setValidadeFim(simpleDateFormat.parse("01/12/2026 00:00:00"));
+        certificadoObject.setValidadeInicio(simpleDateFormat.parse("2025/01/01 00:00:00"));
+        certificadoObject.setValidadeFim(simpleDateFormat.parse("2025/12/31 00:00:00"));
         return certificadoObject;
     }
 
@@ -135,5 +179,11 @@ public class Main {
         Cipher cipher = Cipher.getInstance("RSA");
         cipher.init(Cipher.ENCRYPT_MODE, publicKey);
         return cipher.doFinal(aesKey.getEncoded());
+    }
+
+    public  static byte[] encryptWithPrivateKey(byte[] data, PrivateKey privateKey) throws Exception {
+        Cipher cipher = Cipher.getInstance("RSA");
+        cipher.init(Cipher.ENCRYPT_MODE, privateKey);
+        return cipher.doFinal(data);
     }
 }
