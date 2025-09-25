@@ -2,39 +2,39 @@
 
 # Passo a Passo em PT-br
 
-🔑 1. Geração de identidade + certificado
+🔑 1. Geração de identidade (Cliente)
 
-Você cria chave pública/privada e manda pro servidor assinar.
+Você cria um par de chaves RSA (privada + pública).
 
-Autenticidade: o servidor atesta que sua chave pública é realmente sua (assinando seu certificado).
+Monta um certificado com sua chave pública + dados (nome, IP, validade).
 
-🏦 2. Comunicação cliente ↔ servidor (uso de AES + RSA)
+🏦 2. Obter confiança (Servidor)
 
-Você cifra os dados do certificado com AES e cifra a chave AES com RSA (publica do servidor).
+Você pede a chave pública do servidor.
 
-Só o servidor consegue abrir a chave AES e depois os dados.
+Com ela, você manda seu certificado para o servidor, protegido (AES + RSA).
 
-Confidencialidade: só o servidor tem a chave privada capaz de abrir o conteúdo.
+O servidor assina seu certificado com a chave privada dele e devolve.
+👉 Isso é o servidor dizendo: “confio que essa chave pública é sua”.
 
-📩 3. Mensagem assinada pelo cliente
+📩 3. Criar mensagem
 
-Você calcula o hash da mensagem e assina com sua chave privada.
+Você monta a mensagem e anexa o certificado (já assinado pelo servidor).
 
-O servidor valida com sua chave pública (do certificado assinado).
+Gera um hash da mensagem (SHA-256).
 
-Integridade: se a mensagem for alterada, o hash não bate.
+Assina esse hash com sua chave privada.
+👉 Isso garante autenticidade e integridade.
 
-Autenticidade: só você (que tem a privada) poderia gerar essa assinatura.
+✅ 4. Enviar e verificar (Servidor)
 
-✅ 4. Verificação no servidor
+O servidor recebe a mensagem + certificado.
 
-O servidor checa:
+Verifica se o certificado é válido (assinatura do próprio servidor).
 
-se o certificado veio assinado por ele mesmo → autenticidade do cliente.
+Usa a chave pública do cliente (do certificado) para validar a assinatura da mensagem.
 
-se a assinatura da mensagem bate com a pública do certificado → integridade + autenticidade.
-
-como tudo trafegou cifrado (AES+RSA) → confidencialidade.
+Se der certo: mensagem é confiável e não foi alterada.
 
 ⚡ Em resumo no seu código:
 
