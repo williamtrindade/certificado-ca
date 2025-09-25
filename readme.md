@@ -1,5 +1,53 @@
 # Certificate Management and Secure Messaging Project
 
+# Passo a Passo em PT-br
+
+🔑 1. Geração de identidade + certificado
+
+Você cria chave pública/privada e manda pro servidor assinar.
+
+Autenticidade: o servidor atesta que sua chave pública é realmente sua (assinando seu certificado).
+
+🏦 2. Comunicação cliente ↔ servidor (uso de AES + RSA)
+
+Você cifra os dados do certificado com AES e cifra a chave AES com RSA (publica do servidor).
+
+Só o servidor consegue abrir a chave AES e depois os dados.
+
+Confidencialidade: só o servidor tem a chave privada capaz de abrir o conteúdo.
+
+📩 3. Mensagem assinada pelo cliente
+
+Você calcula o hash da mensagem e assina com sua chave privada.
+
+O servidor valida com sua chave pública (do certificado assinado).
+
+Integridade: se a mensagem for alterada, o hash não bate.
+
+Autenticidade: só você (que tem a privada) poderia gerar essa assinatura.
+
+✅ 4. Verificação no servidor
+
+O servidor checa:
+
+se o certificado veio assinado por ele mesmo → autenticidade do cliente.
+
+se a assinatura da mensagem bate com a pública do certificado → integridade + autenticidade.
+
+como tudo trafegou cifrado (AES+RSA) → confidencialidade.
+
+⚡ Em resumo no seu código:
+
+Autenticidade → assinatura do certificado pelo servidor + assinatura da mensagem pelo cliente.
+
+Integridade → uso do hash (SHA-256) assinado, detecta qualquer alteração.
+
+Confidencialidade → criptografia híbrida (AES para os dados, RSA para proteger a chave AES).
+
+___
+
+# Details In English
+
 ## Overview
 This Java project implements a client-side application for generating, signing, and sending secure messages using certificates and cryptographic techniques. It communicates with a server to obtain a public key, sign certificates, and send encrypted messages. The project uses RSA for asymmetric encryption, AES for symmetric encryption, and SHA-256 for hashing to ensure secure communication.
 
